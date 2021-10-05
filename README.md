@@ -1,8 +1,8 @@
-### Hi there 👋
+
 
 <!--
 **razyoboy/razyoboy** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
-
+### Hi there 👋
 Here are some ideas to get you started:
 
 - 🔭 I’m currently working on ...
@@ -14,3 +14,8 @@ Here are some ideas to get you started:
 - 😄 Pronouns: ...
 - ⚡ Fun fact: ...
 -->
+
+### hi please dont bully me i suck at this
+
+pfp: [powa](https://www.pixiv.net/en/artworks/80067933)
+*please let me know if you wish to take down the image, as I do not have a written permission from the artist of this pfp*
