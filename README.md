@@ -17,7 +17,5 @@ Here are some ideas to get you started:
 
 ### hi please dont bully me i suck at this
 
-- I caught a ghost, yes - I am the wizard you so crave about. I don't see you doing all this though, hehe.
-
 pfp: [powa](https://www.pixiv.net/en/artworks/80067933)  
 *please let me know if you wish to take down the image, as I do not have a written permission from the artist of this pfp*
