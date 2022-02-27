@@ -25,7 +25,7 @@ pfp: [powa](https://www.pixiv.net/en/artworks/80067933)
 ---!>
 
 
-<h1 align="center">Hello, there! 👋</h1>
+<h1 align="center">Hello there! 👋</h1>
 <h3 align="center">An Undergraduate Biomedical Engineering Student</h3>
 
 
