@@ -1,5 +1,5 @@
 # Hello there! 👋
-<img align="right" src="https://github.com/razyoboy/razyoboy/blob/md-migrate/img/arknights-surtr.gif" width="250" height="250" />
+<img align="right" src="https://github.com/razyoboy/razyoboy/blob/main/img/arknights-surtr.gif" width="250" height="250" />
 
 * Enjoys Implementing Software Solutions
 * Moderately Experienced in Creating Terminal-based Applications and Back-end Solutions
