@@ -8,6 +8,7 @@
 
 ## Projects
 * Infrastructure for Medical Data Collection via IoT w/ FHIR Interconnectivity
+* Middleware Development for Raw Data to FHIR Observational Resources Converter
 * FHIR-to-HOSxP EHR Patient Resource Converter
 * Arduino-based Oximeter w/ Demo Mobile Application
 * ML Model for Gesture Detection
