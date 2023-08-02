@@ -14,7 +14,7 @@
 * ML Model for Gesture Detection
 
 ## Stats for Nerds
-![Anurag's GitHub stats](https://github-readme-stats-dusky-kappa-21.vercel.app/api?username=razyoboy&show_icons=true&count_private=true&theme=transparent&hide_rank=true)
+![GitHub stats](https://github-readme-stats-dusky-kappa-21.vercel.app/api?username=razyoboy&show_icons=true&count_private=true&theme=transparent&hide_rank=true)
 
 ![Top Langs](https://github-readme-stats-dusky-kappa-21.vercel.app/api/top-langs/?username=razyoboy&layout=compact&hide=jupyter%20notebook,c,c%2B%2B,css,makefile,cmake,html,processing,purebasic,less&langs_count=10&hide_progress=true&theme=transparent)
 
