@@ -1,7 +1,6 @@
 # Hello there! 👋
 * Enjoys Implementing Software Solutions
-* Moderately Experienced in Creating Terminal-based Applications and Back-end Solutions
-* Currently Trying to Fumble through TypeScript and Front-end Web Frameworks
+* Heavyweight-backend Guy™
 * Big Believer in Ice Cream
 <img src="https://github.com/razyoboy/razyoboy/blob/main/img/arknights-surtr.gif" width="250" height="250" />
 
