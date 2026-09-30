@@ -23,6 +23,7 @@ jobs:
           
           filename: github-metrics.svg
           output_action: commit
+          repositories_affiliations: ""
 
           config_timezone: Asia/Bangkok
           config_display: regular
