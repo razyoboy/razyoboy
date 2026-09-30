@@ -29,23 +29,20 @@ jobs:
           base: ""
 
           config_timezone: Asia/Bangkok
-          config_display: large
-          config_order: languages, habits, isocalendar
+          config_display: regular
+          config_order: languages, isocalendar
 
           # Contribution calendar
           plugin_isocalendar: yes
-          plugin_isocalendar_duration: full-year
+          plugin_isocalendar_duration: half-year
 
           # Languages
           plugin_languages: yes
-          plugin_languages_limit: 6
-          plugin_languages_details: percentage
+          plugin_languages_indepth: yes
+          
+          plugin_languages_limit: 8
+          plugin_languages_threshold: 1%
+          plugin_languages_other: yes
+          
           plugin_languages_sections: most-used
-          plugin_languages_threshold: 2%
-
-          # Coding habits
-          plugin_habits: yes
-          plugin_habits_from: 500
-          plugin_habits_days: 30
-          plugin_habits_facts: yes
-          plugin_habits_charts: yes
+          plugin_languages_details: lines, bytes-size, percentage
