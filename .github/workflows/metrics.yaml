@@ -30,12 +30,15 @@ jobs:
           trap 'docker rm "$container_id" >/dev/null; rm -rf "$image_context"' EXIT
           docker cp "$container_id:/metrics/source/plugins/base/index.mjs" "$image_context/base.mjs"
           docker cp "$container_id:/metrics/source/app/action/index.mjs" "$image_context/action.mjs"
-          python3 .github/scripts/patch-metrics-pagination.py "$image_context/base.mjs" "$image_context/action.mjs"
+          docker cp "$container_id:/metrics/source/plugins/habits/index.mjs" "$image_context/habits.mjs"
+          python3 .github/scripts/patch-metrics-pagination.py "$image_context/base.mjs" "$image_context/action.mjs" "$image_context/habits.mjs"
           node .github/scripts/test-metrics-pagination.mjs "$image_context/base.mjs"
+          node .github/scripts/test-metrics-habits.mjs "$image_context/habits.mjs"
           cat > "$image_context/Dockerfile" <<EOF
           FROM $METRICS_BASE_IMAGE
           COPY base.mjs /metrics/source/plugins/base/index.mjs
           COPY action.mjs /metrics/source/app/action/index.mjs
+          COPY habits.mjs /metrics/source/plugins/habits/index.mjs
           EOF
           docker build --tag metrics:3.34.0 "$image_context"
 
@@ -57,28 +60,40 @@ jobs:
 
           config_timezone: Asia/Bangkok
           config_display: regular
-          config_order: languages, isocalendar
+          config_order: isocalendar, habits
 
           # Contribution calendar
           plugin_isocalendar: yes
           plugin_isocalendar_duration: half-year
 
-          # Languages
-          plugin_languages: yes
-          plugin_languages_indepth: no
+          plugin_languages: no
 
-          plugin_languages_other: yes
-          plugin_languages_sections: most-used
-          plugin_languages_details: bytes-size, percentage
+          # Coding habits and mildly interesting facts, without languages
+          plugin_habits: yes
+          plugin_habits_from: 300
+          plugin_habits_days: 30
+          plugin_habits_facts: yes
+          plugin_habits_charts: yes
+          plugin_habits_charts_type: classic
+          plugin_habits_languages_limit: 0
 
-      - name: Verify the language chart contains data
+      - name: Verify calendar and habits without language charts
         run: |
           python3 - <<'PY'
           import xml.etree.ElementTree as ET
           path = "/metrics_renders/github-metrics.svg"
           root = ET.parse(path).getroot()
-          assert any(node.get("id") == "languages-bar" for node in root.iter()), "Metrics generated an empty language chart"
-          print("Verified: Metrics generated a populated language chart.")
+          text = " ".join(" ".join(root.itertext()).split())
+          assert "Contributions calendar" in text, "Contribution calendar is missing"
+          assert "Recent coding habits" in text, "Coding habits are missing"
+          assert text.index("Contributions calendar") < text.index("Recent coding habits"), "Calendar must appear before habits"
+          assert "Commit activity per hour of day" in text, "Hourly activity chart is missing"
+          assert "Commit activity per day of week" in text, "Weekday activity chart is missing"
+          assert any("facts" in node.get("class", "").split() and len(node) for node in root.iter()), "Coding facts are missing"
+          assert not any(node.get("id") == "languages-bar" for node in root.iter()), "The old language chart is still present"
+          assert "Most used languages" not in text and "Language activity" not in text, "Language sections must stay disabled"
+          assert not any("error" in node.get("class", "").split() for node in root.iter()), "Metrics rendered a plugin error"
+          print("Verified: half-year calendar followed by coding habits and facts, without language charts.")
           PY
 
       - name: Commit verified Metrics on main

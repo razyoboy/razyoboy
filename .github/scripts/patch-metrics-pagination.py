@@ -1,4 +1,4 @@
-"""Repair pagination and prevent failure-time debug dumps in the pinned image."""
+"""Apply compatibility and privacy fixes to the pinned Metrics image."""
 
 from pathlib import Path
 import sys
@@ -46,10 +46,39 @@ def disable_error_diagnostics(source):
     return source.replace(old, new, 1)
 
 
+def patch_habits(source):
+    replacements = {
+        '''        commits
+          .flatMap(({payload}) => payload.commits)
+          .filter(({author}) => data.shared["commits.authoring"].filter(authoring => author?.login?.toLocaleLowerCase().includes(authoring) || author?.email?.toLocaleLowerCase().includes(authoring) || author?.name?.toLocaleLowerCase().includes(authoring)).length)
+          .map(async commit => (await rest.request(commit)).data.files),''':
+        '''        commits
+          .flatMap(({payload, repo}) => payload.commits ?? (payload.head ? [{url: `/repos/${repo.name}/commits/${payload.head}`}] : []))
+          .map(async commit => {
+            const {data: details} = await rest.request(commit)
+            const author = {...details.commit?.author, login: details.author?.login}
+            const authored = data.shared["commits.authoring"].some(identity =>
+              [author.login, author.email, author.name].some(value =>
+                typeof value === "string" && value.toLocaleLowerCase().includes(identity.toLocaleLowerCase())))
+            return authored ? details.files ?? [] : []
+          }),''',
+        '    if ((charts) && (imports.metadata.plugins.habits.extras("charts", {extras, error: false}))) {':
+        '    if ((charts) && (limit > 0) && (imports.metadata.plugins.habits.extras("charts", {extras, error: false}))) {',
+    }
+    for old, new in replacements.items():
+        if source.count(old) != 1:
+            raise ValueError("Metrics habits source differs from the pinned implementation")
+        source = source.replace(old, new, 1)
+    return source
+
+
 if __name__ == "__main__":
     path = Path(sys.argv[1])
     action_path = Path(sys.argv[2])
     patched = patch(path.read_text())
     quiet_action = disable_error_diagnostics(action_path.read_text())
+    habits_path = Path(sys.argv[3])
+    habits = patch_habits(habits_path.read_text())
     path.write_text(patched)
     action_path.write_text(quiet_action)
+    habits_path.write_text(habits)
