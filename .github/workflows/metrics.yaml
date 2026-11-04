@@ -10,24 +10,52 @@ on:
       - main
 
 jobs:
+  diagnostics:
+    uses: ./.github/workflows/metrics-diagnostics.yaml
+    secrets: inherit
+
   github-metrics:
+    needs: diagnostics
     runs-on: ubuntu-latest
 
     permissions:
       contents: write
 
     steps:
-      - uses: lowlighter/metrics@latest
+      - uses: actions/checkout@v4
+
+      # The upstream collector exits after a timeout and compares each page with
+      # the total repository limit. Patch that module in the existing image.
+      - name: Repair Metrics repository pagination
+        env:
+          METRICS_BASE_IMAGE: ghcr.io/lowlighter/metrics@sha256:b8013996b12be3ea049fad2e18db6b31083575a197e43ed63a690a094b9164fb
+        run: |
+          image_context=$(mktemp -d)
+          container_id=$(docker create "$METRICS_BASE_IMAGE")
+          trap 'docker rm "$container_id" >/dev/null; rm -rf "$image_context"' EXIT
+          docker cp "$container_id:/metrics/source/plugins/base/index.mjs" "$image_context/base.mjs"
+          python3 .github/scripts/patch-metrics-pagination.py "$image_context/base.mjs"
+          node .github/scripts/test-metrics-pagination.mjs "$image_context/base.mjs"
+          cat > "$image_context/Dockerfile" <<EOF
+          FROM $METRICS_BASE_IMAGE
+          COPY base.mjs /metrics/source/plugins/base/index.mjs
+          EOF
+          docker build --tag metrics:3.34.0 "$image_context"
+
+      - uses: lowlighter/metrics@65836723097537a54cd8eb90f61839426b4266b6
         with:
           token: ${{ secrets.METRICS_TOKEN }}
+          use_prebuilt_image: no
+          debug: yes
           user: razyoboy
           base: ""
           
-          repositories_affiliations: ""
+          repositories_affiliations: owner
           repositories: 200
+          repositories_batch: 25
           
           filename: github-metrics.svg
-          output_action: commit
+          output_action: none
          
 
           config_timezone: Asia/Bangkok
@@ -45,3 +73,32 @@ jobs:
           plugin_languages_other: yes
           plugin_languages_sections: most-used
           plugin_languages_details: bytes-size, percentage
+
+      - name: Verify the language chart contains data
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          path = "/metrics_renders/github-metrics.svg"
+          root = ET.parse(path).getroot()
+          assert any(node.get("id") == "languages-bar" for node in root.iter()), "Metrics generated an empty language chart"
+          print("Verified: Metrics generated a populated language chart.")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: github-metrics-preview
+          path: /metrics_renders/github-metrics.svg
+          if-no-files-found: error
+
+      - name: Commit verified Metrics on main
+        if: github.ref == 'refs/heads/main'
+        run: |
+          cp /metrics_renders/github-metrics.svg github-metrics.svg
+          if git diff --quiet -- github-metrics.svg; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add github-metrics.svg
+          git commit -m "Update github-metrics.svg [skip ci]"
+          git push

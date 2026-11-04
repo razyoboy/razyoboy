@@ -1,0 +1,125 @@
+name: Metrics diagnostics
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    secrets:
+      METRICS_TOKEN:
+        required: true
+
+permissions: {}
+
+jobs:
+  repository-access:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check what METRICS_TOKEN can actually see
+        env:
+          GH_TOKEN: ${{ secrets.METRICS_TOKEN }}
+          EXPECTED_USER: razyoboy
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          def fail(message):
+              print(f"::error::{message}")
+              sys.exit(1)
+
+          token = os.environ.get("GH_TOKEN", "")
+          if not token:
+              fail("METRICS_TOKEN is missing or empty.")
+
+          def request(path, payload=None):
+              body = None if payload is None else json.dumps(payload).encode()
+              req = urllib.request.Request(
+                  f"https://api.github.com{path}", data=body,
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Accept": "application/vnd.github+json",
+                      "Content-Type": "application/json",
+                      "User-Agent": "metrics-diagnostics",
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      return json.load(response), response.headers
+              except urllib.error.HTTPError as error:
+                  fail(f"GitHub returned HTTP {error.code} for {path}; check token validity and access.")
+              except urllib.error.URLError:
+                  fail("Could not connect to GitHub; retry this diagnostic.")
+
+          user, headers = request("/user")
+          expected = os.environ["EXPECTED_USER"]
+          login = user["login"]
+          print(f"Token account: {login}; expected account: {expected}")
+          if login.casefold() != expected.casefold():
+              fail("METRICS_TOKEN belongs to a different account.")
+          scopes = headers.get("X-OAuth-Scopes")
+          print(f"Classic/OAuth scopes: {scopes if scopes is not None else '(not exposed for this token type)'}")
+          if scopes is not None and "repo" not in {s.strip() for s in scopes.split(",")}:
+              print("::warning::This token does not report the repo scope required for classic-token private repository access.")
+
+          # Match Metrics' normal repository query, including fork exclusion,
+          # empty affiliations and UPDATED_AT ordering. Fetch every page here.
+          query = """
+          query($login: String!, $after: String) {
+            user(login: $login) {
+              privateOwned: repositories(first: 1, privacy: PRIVATE,
+                affiliations: [OWNER], ownerAffiliations: [OWNER]) { totalCount }
+              repositories(first: 100, after: $after, isFork: false,
+                orderBy: {field: UPDATED_AT, direction: DESC}) {
+                totalCount
+                pageInfo { hasNextPage endCursor }
+                nodes {
+                  isPrivate
+                  owner { login }
+                  languages(first: 8) { edges { size } }
+                }
+              }
+            }
+          }
+          """
+          repositories = []
+          cursor = None
+          pages = 0
+          while True:
+              result, _ = request("/graphql", {"query": query, "variables": {"login": expected, "after": cursor}})
+              if result.get("errors") or not result.get("data", {}).get("user"):
+                  fail("GitHub rejected the repository GraphQL query; verify METRICS_TOKEN permissions.")
+              account = result["data"]["user"]
+              page = account["repositories"]
+              nodes = page["nodes"]
+              pages += 1
+              repositories.extend(nodes)
+              print(f"Page {pages}: {len(nodes)} non-fork repos, {sum(r['isPrivate'] for r in nodes)} private")
+              if not page["pageInfo"]["hasNextPage"]:
+                  break
+              next_cursor = page["pageInfo"]["endCursor"]
+              if not next_cursor or next_cursor == cursor:
+                  fail("GitHub returned an invalid pagination cursor.")
+              cursor = next_cursor
+
+          personal_private = [r for r in repositories if r["isPrivate"] and r["owner"]["login"].casefold() == expected.casefold()]
+          private_bytes = sum(edge["size"] for r in personal_private for edge in r["languages"]["edges"])
+          report = (
+              f"Visible non-fork repos: {len(repositories)} of {page['totalCount']}\n"
+              f"Visible personally owned private repos (including forks): {account['privateOwned']['totalCount']}\n"
+              f"Visible personally owned private non-fork repos: {len(personal_private)}\n"
+              f"Private non-fork repos in Metrics' first 100: {sum(r['isPrivate'] for r in repositories[:100])}\n"
+              f"Language bytes in personally owned private non-fork repos: {private_bytes}\n"
+          )
+          print(report)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write("### METRICS_TOKEN repository access\n\n```text\n" + report + "```\n")
+          if not personal_private:
+              fail("No personally owned private non-fork repositories are visible. Check METRICS_TOKEN access and whether the missing repositories are forks (Metrics excludes forks by default).")
+          if not private_bytes:
+              fail("Private repos are visible, but GitHub returned no language bytes for them. Investigate repository contents and Linguist classification.")
+          print("Private repository language data is accessible. Investigate Metrics collection/rendering and the separate Cloud Run README cards next.")
+          PY
