@@ -10,12 +10,7 @@ on:
       - main
 
 jobs:
-  diagnostics:
-    uses: ./.github/workflows/metrics-diagnostics.yaml
-    secrets: inherit
-
   github-metrics:
-    needs: diagnostics
     runs-on: ubuntu-latest
 
     permissions:
@@ -46,7 +41,7 @@ jobs:
         with:
           token: ${{ secrets.METRICS_TOKEN }}
           use_prebuilt_image: no
-          debug: yes
+          debug: no
           user: razyoboy
           base: ""
           
@@ -83,12 +78,6 @@ jobs:
           assert any(node.get("id") == "languages-bar" for node in root.iter()), "Metrics generated an empty language chart"
           print("Verified: Metrics generated a populated language chart.")
           PY
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: github-metrics-preview
-          path: /metrics_renders/github-metrics.svg
-          if-no-files-found: error
 
       - name: Commit verified Metrics on main
         if: github.ref == 'refs/heads/main'
