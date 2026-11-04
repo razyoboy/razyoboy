@@ -1,4 +1,4 @@
-"""Repair pagination in the pinned Metrics image without rebuilding its dependencies."""
+"""Repair pagination and prevent failure-time debug dumps in the pinned image."""
 
 from pathlib import Path
 import sys
@@ -24,6 +24,32 @@ def patch(source):
     return source
 
 
+def disable_error_diagnostics(source):
+    old = '''  //Errors
+  catch (error) {
+    console.error(error)
+    //Print debug buffer if debug was not enabled (if it is, it's already logged on the fly)
+    if (!DEBUG) {
+      for (const log of [info.break(), "An error occurred, logging debug message :", ...debugged])
+        console.log(log)
+    }
+    core.setFailed(error.message)
+    quit("failed")
+  }'''
+    new = '''  // Keep buffered API/debug data out of public failure logs.
+  catch (error) {
+    core.setFailed("Metrics failed. Detailed diagnostics are disabled to protect private repository data.")
+    quit("failed")
+  }'''
+    if source.count(old) != 1:
+        raise ValueError("Metrics error handler differs from the pinned implementation")
+    return source.replace(old, new, 1)
+
+
 if __name__ == "__main__":
     path = Path(sys.argv[1])
-    path.write_text(patch(path.read_text()))
+    action_path = Path(sys.argv[2])
+    patched = patch(path.read_text())
+    quiet_action = disable_error_diagnostics(action_path.read_text())
+    path.write_text(patched)
+    action_path.write_text(quiet_action)

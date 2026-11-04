@@ -29,11 +29,13 @@ jobs:
           container_id=$(docker create "$METRICS_BASE_IMAGE")
           trap 'docker rm "$container_id" >/dev/null; rm -rf "$image_context"' EXIT
           docker cp "$container_id:/metrics/source/plugins/base/index.mjs" "$image_context/base.mjs"
-          python3 .github/scripts/patch-metrics-pagination.py "$image_context/base.mjs"
+          docker cp "$container_id:/metrics/source/app/action/index.mjs" "$image_context/action.mjs"
+          python3 .github/scripts/patch-metrics-pagination.py "$image_context/base.mjs" "$image_context/action.mjs"
           node .github/scripts/test-metrics-pagination.mjs "$image_context/base.mjs"
           cat > "$image_context/Dockerfile" <<EOF
           FROM $METRICS_BASE_IMAGE
           COPY base.mjs /metrics/source/plugins/base/index.mjs
+          COPY action.mjs /metrics/source/app/action/index.mjs
           EOF
           docker build --tag metrics:3.34.0 "$image_context"
 
