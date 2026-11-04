@@ -10,7 +10,12 @@ on:
       - main
 
 jobs:
+  diagnostics:
+    uses: ./.github/workflows/metrics-diagnostics.yaml
+    secrets: inherit
+
   github-metrics:
+    needs: diagnostics
     runs-on: ubuntu-latest
 
     permissions:
@@ -27,7 +32,7 @@ jobs:
           repositories: 200
           
           filename: github-metrics.svg
-          output_action: commit
+          output_action: none
          
 
           config_timezone: Asia/Bangkok
