@@ -47,6 +47,7 @@ jobs:
           token: ${{ secrets.METRICS_TOKEN }}
           use_prebuilt_image: no
           debug: no
+          plugins_errors_fatal: yes
           user: razyoboy
           base: ""
           
