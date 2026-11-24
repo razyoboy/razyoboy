@@ -17,7 +17,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The upstream collector exits after a timeout and compares each page with
       # the total repository limit. Patch that module in the existing image.
